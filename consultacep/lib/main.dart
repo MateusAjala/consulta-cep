@@ -28,6 +28,7 @@ class _EstadoTelaCep extends State<TelaCep> {
 
   Map<String, dynamic>? _endereco;
   String? _erro;
+  bool _carregando = false;
 
   Future<void> buscarCep() async {
     final String cep = _campoCep.text.replaceAll('-', '').trim();
@@ -43,6 +44,7 @@ class _EstadoTelaCep extends State<TelaCep> {
     setState(() {
       _erro = null;
       _endereco = null;
+      _carregando = true;
     });
 
     final String url = 'https://viacep.com.br/ws/$cep/json/';
@@ -59,17 +61,23 @@ class _EstadoTelaCep extends State<TelaCep> {
       setState(() => _endereco = dados);
     } catch (excecao) {
       setState(() => _erro = 'Erro ao consultar o CEP');
+    } finally {
+      setState(() => _carregando = false);
     }
   }
 
   @override
   Widget build(BuildContext contexto) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Consulta de CEP')),
-      body: Padding(
+      appBar: AppBar(
+        title: const Text('Consulta de CEP'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             TextField(
               controller: _campoCep,
@@ -78,21 +86,67 @@ class _EstadoTelaCep extends State<TelaCep> {
                 labelText: 'CEP',
                 hintText: 'Ex.: 01001000',
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.location_on),
               ),
             ),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: buscarCep, child: const Text('Buscar')),
+            ElevatedButton(
+              onPressed: _carregando ? null : buscarCep,
+              child: const Text('Buscar'),
+            ),
             const SizedBox(height: 24),
+            if (_carregando) const Center(child: CircularProgressIndicator()),
             if (_erro != null)
               Text(_erro!, style: const TextStyle(color: Colors.red)),
-            if (_endereco != null) ...[
-              Text('CEP: ${_endereco!['cep']}'),
-              Text('Rua: ${_endereco!['logradouro']}'),
-              Text('Bairro: ${_endereco!['bairro']}'),
-              Text('Cidade: ${_endereco!['localidade']} - ${_endereco!['uf']}'),
-            ],
+            _montarCard(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _montarCard() {
+    if (_endereco == null) {
+      return const SizedBox();
+    }
+
+    final String complemento = _endereco!['complemento'] ?? '';
+
+    return Card(
+      elevation: 4,
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.home),
+            title: Text(_endereco!['logradouro'] ?? ''),
+            subtitle: Text(
+              complemento.isEmpty ? 'Sem complemento' : complemento,
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.location_city),
+            title: const Text('Bairro'),
+            subtitle: Text(_endereco!['bairro'] ?? ''),
+          ),
+          ListTile(
+            leading: const Icon(Icons.map),
+            title: const Text('Cidade'),
+            subtitle: Text(
+              '${_endereco!['localidade'] ?? ''} - ${_endereco!['uf'] ?? ''}',
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.markunread_mailbox),
+            title: const Text('CEP'),
+            subtitle: Text(_endereco!['cep'] ?? ''),
+          ),
+          ListTile(
+            leading: const Icon(Icons.phone),
+            title: const Text('DDD'),
+            subtitle: Text(_endereco!['ddd'] ?? ''),
+          ),
+        ],
       ),
     );
   }
